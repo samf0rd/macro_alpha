@@ -22,7 +22,7 @@ def train_with_mlflow():
     logger.info("Loading model-ready features...")
     
     # 1. Load the data
-    train_path = Path('C:/Users/Sam Garcia/PycharmProjects/macro_alpha/data/processed/train_ready_features.parquet')
+    train_path = Path('C:/Users/Sam Garcia/PycharmProjects/macro_alpha/data/processed/inference_ready_features.parquet')
     if not train_path.exists():
         logger.error("Data not found. Run data_pipeline.py and notebooks first.")
         return

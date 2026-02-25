@@ -18,10 +18,10 @@ jobs:
       - name: 📥 Checkout Repository   
         uses: actions/checkout@v4 # The server downloads a copy of your code so it has access to src/data_pipeline.py  
 
-      - name: 🐍 Set up Python 3.10 
+      - name: 🐍 Set up Python 3.12
         uses: actions/setup-python@v5 # The server installs Python.
         with:
-          python-version: '3.10'
+          python-version: '3.12'
           cache: 'pip'
 
       - name: 📦 Install Dependencies # The server reads your requirements.txt and installs pandas, xgboost, yfinance, etc
