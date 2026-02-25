@@ -88,3 +88,7 @@ Thumbs.db
 # Keep these files (exceptions)
 !.gitkeep
 !requirements.txt
+
+# Allow specific pipeline outputs for the CI/CD pipeline and Dashboard
+!data/market_macro_data.parquet
+!data/processed/inference_ready_features.parquet
