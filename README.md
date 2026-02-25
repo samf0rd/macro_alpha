@@ -86,9 +86,9 @@ macro_alpha/
 │   └── processed/              # Clean, feature-engineered data
 │
 ├── notebooks/                  # Exploratory analysis
-│   ├── 01_data_exploration.ipynb
-│   ├── 02_feature_engineering.ipynb
-│   └── 03_model_experiments.ipynb
+│   ├── model_explainability.ipynb
+│   ├── feature_engineering.ipynb
+│   └── model_experiments.ipynb
 │
 ├── src/                        # Production code
 │   ├── data_pipeline.py        # ETL script
@@ -103,7 +103,7 @@ macro_alpha/
 ├── logs/                       # Execution logs
 │
 ├── .github/workflows/          # CI/CD automation
-│   └── daily_inference.yml     # Scheduled model runs
+│   └── daily_pipeline.yml     # Scheduled model runs
 │
 ├── requirements.txt            # Python dependencies
 └── README.md                   # This file
