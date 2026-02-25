@@ -1,0 +1,44 @@
+name: Daily Macro-Alpha Pipeline
+
+on:
+  schedule:
+    # Runs at 22:00 UTC Monday-Friday
+    # This aligns perfectly with 5:00 PM EST (1 hour after US market close)
+    # and 10:00 PM WET, capturing the full daily trading session.
+    - cron: '0 22 * * 1-5'
+  workflow_dispatch: # Allows manual clicking of a "Run Workflow" button in GitHub
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Grants the bot permission to push data back to the repo
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: 📦 Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 🔄 Run Data Harvester (Yahoo/FRED)
+        run: python src/data_pipeline.py
+
+      - name: ⚙️ Run Feature Engineering
+        run: python src/feature_engineering.py
+
+      - name: 💾 Commit and Push Updated Data
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add data/market_macro_data.parquet data/processed/inference_ready_features.parquet
+          # Only commit if there are actually new changes to avoid pipeline errors
+          git diff --quiet && git diff --staged --quiet || (git commit -m "🤖 Auto-update: Market Data & ML Features" && git push)
