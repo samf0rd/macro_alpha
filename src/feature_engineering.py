@@ -51,15 +51,28 @@ def engineer_features():
         'yield_10y', 'yield_2y', 'yield_spread'
     ]
     
-    df_inference = df.drop(columns=columns_to_drop).dropna()
+    # Split Training vs Inference
+    # Training drops the last 5 rows (can't see the future)
+    df_train = df[:-5].dropna()
+    # Inference keeps all rows (dashboard needs 'today')
+    df_inference = df.dropna() 
+    
+    # Drop leakage columns
+    df_train_ready = df_train.drop(columns=columns_to_drop)
+    df_inference_ready = df_inference.drop(columns=columns_to_drop)
     
     out_dir = PROJECT_ROOT / 'data' / 'processed'
     out_dir.mkdir(parents=True, exist_ok=True)
     
+    train_path = out_dir / 'train_ready_features.parquet'
     inference_path = out_dir / 'inference_ready_features.parquet'
-    df_inference.to_parquet(inference_path)
     
-    logger.info(f"✅ Feature engineering complete. Saved {len(df_inference)} rows to {inference_path}")
+    df_train_ready.to_parquet(train_path)
+    df_inference_ready.to_parquet(inference_path)
+    
+    logger.info("✅ Feature engineering complete.")
+    logger.info(f"   Saved {len(df_train_ready)} training rows to {train_path}")
+    logger.info(f"   Saved {len(df_inference_ready)} inference rows to {inference_path}")
 
 if __name__ == "__main__":
     engineer_features()

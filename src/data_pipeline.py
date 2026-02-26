@@ -29,14 +29,14 @@ warnings.filterwarnings('ignore')
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
+    level=logging.INFO, # Set the logging level to INFO (INFO, WARNING, ERROR, CRITICAL)
+    format='%(asctime)s - %(levelname)s - %(message)s', # Set the format of the log message
     handlers=[
-        logging.FileHandler('data_pipeline.log'),
-        logging.StreamHandler()
+        logging.FileHandler('data_pipeline.log'), # Log to a file
+        logging.StreamHandler() # Log to the console
     ]
 )
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__) # Get the logger for the current module
 
 
 class DataHarvester:
@@ -72,24 +72,24 @@ class DataHarvester:
         Returns:
             pd.DataFrame: Market data with columns [close_sp500, vix]
         """
-        logger.info("Fetching market data from Yahoo Finance...")
+        logger.info("Fetching market data from Yahoo Finance...")  # Log the start of the market data fetch
         
         try:
             # Fetch S&P 500
+            # Download the S&P 500 index data from Yahoo Finance
             sp500 = yf.download('^GSPC', start=self.start_date, end=self.end_date, 
                                progress=False)
             
-            # Handle multi-level columns from yfinance (new behavior)
+            # Handle multi-level columns from yfinance
             if isinstance(sp500.columns, pd.MultiIndex):
                 sp500.columns = sp500.columns.get_level_values(0)
-            
+            # Rename the 'Close' column to 'close_sp500'
             sp500 = sp500[['Close']].rename(columns={'Close': 'close_sp500'})
             
             # Fetch VIX
             vix = yf.download('^VIX', start=self.start_date, end=self.end_date,
                              progress=False)
             
-            # Handle multi-level columns from yfinance
             if isinstance(vix.columns, pd.MultiIndex):
                 vix.columns = vix.columns.get_level_values(0)
             
@@ -103,12 +103,12 @@ class DataHarvester:
                 market_data.index = market_data.index.tz_localize(None)
             
             logger.info(f"Market data fetched: {len(market_data)} rows, "
-                       f"{market_data.index.min()} to {market_data.index.max()}")
+                       f"{market_data.index.min()} to {market_data.index.max()}")  # Log the number of rows and the date range
             
             return market_data
         
         except Exception as e:
-            logger.error(f"Error fetching market data: {e}")
+            logger.error(f"Error fetching market data: {e}")   # Log the error if the market data fetch fails
             raise
     
     def fetch_macro_data(self):
