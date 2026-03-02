@@ -18,39 +18,45 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
 def train_with_mlflow():
     logger.info("Loading model-ready features...")
     
     # 1. Load the data
-    train_path = Path('C:/Users/Sam Garcia/PycharmProjects/macro_alpha/data/processed/inference_ready_features.parquet')
+    train_path = PROJECT_ROOT / 'data' / 'processed' / 'train_ready_features.parquet'
     if not train_path.exists():
         logger.error("Data not found. Run data_pipeline.py and notebooks first.")
         return
         
     df_train = pd.read_parquet(train_path)
     
-    X_train = df_train.drop(columns=['target_5d_up'])
+    # Drop the target AND the LSTM score (XGBoost is purely the Macro/Regime expert now)
+    cols_to_drop = ['target_5d_up', 'lstm_momentum_score']
+    X_train = df_train.drop(columns=[c for c in cols_to_drop if c in df_train.columns])
     y_train = df_train['target_5d_up']
     feature_names = list(X_train.columns)
     
-    # Define hyperparameters
+    # The mathematically optimal 61.16% Parameters (Macro + HMM Regime)
     params = {
+        "n_estimators" : 170,
+        "learning_rate": 0.0774,
+        "max_depth": 4,
+        "subsample": 0.5981,
+        "colsample_bytree" : 0.5341,
+        "min_child_weight" : 3,
+        "gamma" : 0.0544,
         "tree_method": "hist",
-        "enable_categorical": True,
-        "n_estimators": 100,
-        "learning_rate": 0.05,
-        "max_depth": 3,
-        "subsample": 0.8,
-        "colsample_bytree": 0.8,
-        "random_state": 42,
-        "n_jobs": -1
+        "enable_categorical" : True,
+        "random_state" : 42,
+        "n_jobs" : -1
     }
 
     # Set up MLflow Experiment
     mlflow.set_experiment("Macro_Alpha_Forecast")
 
-    with mlflow.start_run(run_name="Baseline_XGBoost"):
-        logger.info("Training Master Model...")
+    with mlflow.start_run(run_name="Parallel_Macro_Expert"):
+        logger.info("Training Macro Expert Model...")
         
         # 2. Initialize and Train Model
         model = XGBClassifier(**params)
@@ -72,8 +78,8 @@ def train_with_mlflow():
         logger.info(f"MLflow Run completed. Acc: {train_acc:.4f}, Prec: {train_prec:.4f}")
 
         # 5. Export Local Artifacts for Streamlit (Dashboard usage)
-        models_dir = Path('C:/Users/Sam Garcia/PycharmProjects/macro_alpha/models')
-        models_dir.mkdir(exist_ok=True)
+        models_dir = PROJECT_ROOT / 'models'
+        models_dir.mkdir(parents=True, exist_ok=True)
         
         joblib.dump(model, models_dir / 'macro_xgb_model.joblib')
         joblib.dump(feature_names, models_dir / 'model_features.joblib')

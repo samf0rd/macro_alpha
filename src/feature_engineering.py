@@ -7,6 +7,7 @@ Transforms raw market/macro data into stationary ML features.
 import pandas as pd
 import pandas_ta as ta
 import numpy as np
+from hmmlearn.hmm import GaussianHMM
 from pathlib import Path
 import logging
 
@@ -40,21 +41,30 @@ def engineer_features():
     df['yield_2y_change'] = df['yield_2y'].diff()
     df['yield_spread_change'] = df['yield_spread'].diff()
     df['fed_funds_6mo_lag'] = df['fed_funds_rate'].shift(126)
+
+    # 4. Market Regimes (HMM)
+    logger.info("Calculating 3-State Market Regimes...")
+    # Create a temporary dataframe without NaNs just to train the HMM
+    hmm_data = df[['daily_return', 'volatility_20d']].dropna()
     
-    # 4. Target Variable
+    hmm_model = GaussianHMM(n_components=3, covariance_type="full", n_iter=1000, random_state=42)
+    hmm_model.fit(hmm_data)
+    
+    # Predict the states and align them with the main dataframe
+    df.loc[hmm_data.index, 'regime'] = hmm_model.predict(hmm_data)
+    
+    # 5. Target Variable
     df['future_5d_close'] = df['close_sp500'].shift(-5)
     df['target_5d_up'] = (df['future_5d_close'] > df['close_sp500']).astype(int)
     
-    # 5. Clean & Export
+    # 6. Clean & Export
     columns_to_drop = [
         'close_sp500', 'cpi', 'future_5d_close', 
         'yield_10y', 'yield_2y', 'yield_spread'
     ]
     
     # Split Training vs Inference
-    # Training drops the last 5 rows (can't see the future)
     df_train = df[:-5].dropna()
-    # Inference keeps all rows (dashboard needs 'today')
     df_inference = df.dropna() 
     
     # Drop leakage columns
