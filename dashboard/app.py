@@ -3,7 +3,8 @@ import pandas as pd
 import numpy as np
 import joblib
 import shap
-import matplotlib.pyplot as plt
+import torch
+import torch.nn as nn
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas_ta as ta
@@ -11,6 +12,19 @@ from pathlib import Path
 
 # --- Dynamic Path Resolution ---
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+# --- LSTM Class Definition ---
+class MarketLSTM(nn.Module):
+    def __init__(self, input_size, hidden_size, num_layers):
+        super(MarketLSTM, self).__init__()
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True, dropout=0.2)
+        self.fc = nn.Linear(hidden_size, 1)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        lstm_out, _ = self.lstm(x)
+        out = self.fc(lstm_out[:, -1, :])
+        return self.sigmoid(out)
 
 # --- Page Config ---
 st.set_page_config(page_title="Macro-Alpha Engine", layout="wide", initial_sidebar_state="expanded")
@@ -33,18 +47,30 @@ FEATURE_NAMES = {
     'yield_10y_change': '10Y Yield Daily Chg',
     'yield_2y_change': '2Y Yield Daily Chg',
     'yield_spread_change': 'Yield Curve Spread Chg',
-    'fed_funds_6mo_lag': 'Fed Funds Rate (6mo Lag)'
+    'fed_funds_6mo_lag': 'Fed Funds Rate (6mo Lag)',
+    'regime': 'HMM Market Regime'
 }
 
 # --- Load Artifacts ---
 @st.cache_resource
 def load_data():
+    # Load Macro Brain (XGBoost)
     model_path = PROJECT_ROOT / 'models' / 'macro_xgb_model.joblib'
     model = joblib.load(model_path)
     
+    # Load Price Action Brain (PyTorch LSTM)
+    lstm_scaler = joblib.load(PROJECT_ROOT / 'models' / 'lstm_scaler.joblib')
+    lstm_model = MarketLSTM(input_size=3, hidden_size=32, num_layers=2)
+    lstm_model.load_state_dict(torch.load(PROJECT_ROOT / 'models' / 'lstm_model.pt', map_location=torch.device('cpu'), weights_only=True))
+    lstm_model.eval()
+    
     features_path = PROJECT_ROOT / 'data' / 'processed' / 'inference_ready_features.parquet'
     df_features = pd.read_parquet(features_path)
-    X = df_features.drop(columns=['target_5d_up'])
+    
+    # Dynamically select only features expected by XGBoost
+    expected_features = model.feature_names_in_ if hasattr(model, 'feature_names_in_') else model.get_booster().feature_names
+    X = df_features[[col for col in expected_features if col in df_features.columns]]
+    
     y = df_features['target_5d_up'] if 'target_5d_up' in df_features.columns else None
     
     raw_path = PROJECT_ROOT / 'data' / 'market_macro_data.parquet'
@@ -58,9 +84,9 @@ def load_data():
         df_raw = df_features.copy()
         
     df_raw = df_raw.ffill().dropna()
-    return model, X, y, df_raw
+    return model, lstm_model, lstm_scaler, X, y, df_raw, df_features
 
-model, X_inference, y_inference, df_raw = load_data()
+model, lstm_model, lstm_scaler, X_inference, y_inference, df_raw, df_features = load_data()
 
 latest_date = X_inference.index[-1].date()
 X_today = X_inference.iloc[-1:]
@@ -77,17 +103,31 @@ conf_thresh = st.sidebar.slider("Conviction Threshold", 0.50, 0.75, 0.55, 0.01)
 st.sidebar.markdown("---")
 page = st.sidebar.radio("Navigation", ["📈 Daily Prediction Desk", "📊 Portfolio Performance", "🧪 Scenario Lab & History"])
 
+# --- INFERENCE: The Double Brain Logic ---
+# Brain 1: Macro
 prob_up = model.predict_proba(X_today)[0][1]
 
+# Brain 2: Price Action LSTM
+last_10_days = df_features[['daily_return', 'volatility_20d', 'RSI_14']].iloc[-10:]
+scaled_10_days = lstm_scaler.transform(last_10_days)
+tensor_10_days = torch.FloatTensor(np.array([scaled_10_days]))
+with torch.no_grad():
+    lstm_prob = lstm_model(tensor_10_days).item()
+
+# The Handshake (Parallel Voting)
+macro_vote = prob_up > conf_thresh
+lstm_vote = lstm_prob > conf_thresh
+ensemble_vote = macro_vote and lstm_vote
+
 # Define Visual Styles for Signals
-if prob_up > conf_thresh:
+if ensemble_vote:
     sig_txt, direction = "BULLISH", "UP"
     box_bg, box_border, text_color = "#d1e7dd", "#badbcc", "#0f5132" # Soft Green
-elif prob_up < (1 - conf_thresh):
+elif not macro_vote and not lstm_vote:
     sig_txt, direction = "BEARISH", "DOWN"
     box_bg, box_border, text_color = "#f8d7da", "#f5c2c7", "#842029" # Soft Red
 else:
-    sig_txt, direction = "NEUTRAL", "FLAT"
+    sig_txt, direction = "NEUTRAL (MIXED SIGNALS)", "FLAT"
     box_bg, box_border, text_color = "#fff3cd", "#ffecb5", "#664d03" # Soft Yellow
 
 
@@ -140,9 +180,10 @@ if page == "📈 Daily Prediction Desk":
             </div>
             """, unsafe_allow_html=True)
             
-            c1, c2 = st.columns(2)
-            c1.metric("Model Confidence", f"{prob_up:.1%}")
-            c2.metric("Conviction Threshold", f"{conf_thresh:.0%}")
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Macro Conf.", f"{prob_up:.1%}")
+            c2.metric("LSTM Conf.", f"{lstm_prob:.1%}")
+            c3.metric("Threshold", f"{conf_thresh:.0%}")
         
     with col2:
         with st.container(border=True):
@@ -156,14 +197,14 @@ if page == "📈 Daily Prediction Desk":
             bullish = shap_df[shap_df['Impact'] > 0].sort_values('Impact', ascending=False).head(3)
             bearish = shap_df[shap_df['Impact'] < 0].sort_values('Impact', ascending=True).head(3)
             
-            if prob_up > conf_thresh:
-                st.success(f"**Edge Identified: Bullish.** The primary tailwind is **{bullish.iloc[0]['Name']}**, supported by favorable trends. The model is discounting current bearish factors.")
-            elif prob_up < (1 - conf_thresh):
-                st.error(f"**Edge Identified: Bearish.** Downward pressure is being driven primarily by **{bearish.iloc[0]['Name']}** and macroeconomic headwinds.")
+            if ensemble_vote:
+                st.success(f"**Edge Identified: Bullish.** Both the Macro and LSTM brains are aligned. The primary tailwind is **{bullish.iloc[0]['Name']}**, supported by favorable short-term momentum.")
+            elif not macro_vote and not lstm_vote:
+                st.error(f"**Edge Identified: Bearish.** Downward pressure is being driven by macroeconomic headwinds like **{bearish.iloc[0]['Name']}**, and confirmed by negative price momentum.")
             else:
-                st.info(f"**Edge Identified: Neutral (Cash).** Bullish drivers like **{bullish.iloc[0]['Name']}** are currently being offset by bearish factors. No clear edge above the {conf_thresh:.0%} threshold.")
+                st.info(f"**Edge Identified: Neutral (Cash).** The Dual-Brain engine is detecting mixed signals between short-term price action and long-term macro fundamentals. Defaulting to capital preservation.")
                 
-            with st.expander("View Top Drivers Breakdown", expanded=True):
+            with st.expander("View Top Macro Drivers Breakdown", expanded=True):
                 cb1, cb2 = st.columns(2)
                 with cb1:
                     st.markdown("**Bullish Factors:**")
@@ -178,26 +219,51 @@ if page == "📈 Daily Prediction Desk":
 elif page == "📊 Portfolio Performance":
     
     with st.container(border=True):
-        st.title("📊 Portfolio Performance")
-        st.warning("⚠️ **Analyst Note:** This chart represents an *In-Sample* backtest using the Master Model for demonstration purposes. True *Out-of-Sample* performance is tracked via MLflow.")
+        st.title("🧠 Unsupervised Market Regimes")
+        st.warning("⚠️ **Analyst Note:** This chart visualizes our Hidden Markov Model mapping. True *Out-of-Sample* performance is tracked via MLflow.")
         
         lookback = min(750, len(X_inference))
-        X_backtest = X_inference.iloc[-lookback:].copy()
-        historical_probs = model.predict_proba(X_backtest)[:, 1]
+        plot_df = df_features.iloc[-lookback:].copy()
         
-        signals = np.where(historical_probs > conf_thresh, 1, 0)
-        actual_returns = X_backtest['daily_return'].shift(-1).fillna(0)
-        strategy_returns = signals * actual_returns
-        
-        cum_strategy = (1 + strategy_returns).cumprod()
-        cum_market = (1 + actual_returns).cumprod()
-        
+        # Fallback if regime isn't in features yet
+        if 'regime' not in plot_df.columns:
+            plot_df['regime'] = 0 
+            
+        # Get actual price for plotting
+        if 'close_sp500' in df_raw.columns:
+            plot_df['close'] = df_raw.loc[plot_df.index, 'close_sp500']
+        else:
+            plot_df['close'] = plot_df['daily_return'].cumsum()
+
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=X_backtest.index, y=cum_strategy, mode='lines', name='Macro-Alpha Strategy', line=dict(color='#00C851', width=2.5)))
-        fig.add_trace(go.Scatter(x=X_backtest.index, y=cum_market, mode='lines', name='S&P 500 Benchmark', line=dict(color='gray', width=1.5, dash='dash')))
-        fig.update_layout(height=400, hovermode="x unified", margin=dict(l=0, r=0, t=10, b=0))
+        regime_colors = {0: '#10b981', 1: '#f59e0b', 2: '#ef4444'} 
+        regime_names = {0: 'Quiet Bull (Low Vol)', 1: 'Choppy/Transition (Med Vol)', 2: 'Extreme Bear (High Vol)'}
         
+        for regime_id in [0, 1, 2]:
+            mask = plot_df['regime'] == regime_id
+            fig.add_trace(go.Scatter(
+                x=plot_df[mask].index, 
+                y=plot_df[mask]['close'],
+                mode='markers',
+                marker=dict(color=regime_colors.get(regime_id, 'gray'), size=4),
+                name=regime_names.get(regime_id, f'Regime {regime_id}')
+            ))
+
+        fig.update_layout(
+            height=400, 
+            hovermode="x unified", 
+            margin=dict(l=0, r=0, t=10, b=0),
+            legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01)
+        )
         st.plotly_chart(fig, use_container_width=True, theme="streamlit")
+        
+        # Calculate strategy metrics safely using X_inference
+        X_backtest = X_inference.iloc[-lookback:]
+        historical_probs = model.predict_proba(X_backtest)[:, 1]
+        signals = np.where(historical_probs > conf_thresh, 1, 0)
+        actual_returns = plot_df['daily_return'].shift(-1).fillna(0)
+        strategy_returns = signals * actual_returns
+        cum_strategy = (1 + strategy_returns).cumprod()
         
         strat_sharpe = (strategy_returns.mean() / strategy_returns.std()) * np.sqrt(252) if strategy_returns.std() > 0 else 0
         rolling_max = cum_strategy.cummax()
@@ -262,7 +328,7 @@ elif page == "🧪 Scenario Lab & History":
             </div>
             """, unsafe_allow_html=True)
             
-            st.metric("Simulated Confidence", f"{sim_prob:.1%}", delta=f"{(sim_prob - prob_up)*100:.1f}% change")
+            st.metric("Simulated Macro Confidence", f"{sim_prob:.1%}", delta=f"{(sim_prob - prob_up)*100:.1f}% change")
             
             st.divider()
             alerts = 0
