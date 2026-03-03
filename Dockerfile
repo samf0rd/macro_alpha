@@ -14,9 +14,13 @@ RUN apt-get update && apt-get install -y \
 # Copy requirements first (to leverage Docker cache)
 COPY requirements.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Set environment variables to prevent SHAP from installing PyTorch
+ENV SHAP_INSTALL_TORCH=0
+ENV SHAP_INSTALL_LIGHTGBM=0
 
+# Install Python dependencies
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+RUN pip install --no-cache-dir -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
 # Copy the rest of the project files
 COPY . .
 
