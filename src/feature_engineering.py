@@ -57,19 +57,20 @@ def engineer_features():
     df['future_5d_close'] = df['close_sp500'].shift(-5)
     df['target_5d_up'] = (df['future_5d_close'] > df['close_sp500']).astype(int)
     
-    # 6. Clean & Export
+# 6. Clean & Export
     columns_to_drop = [
         'close_sp500', 'cpi', 'future_5d_close', 
         'yield_10y', 'yield_2y', 'yield_spread'
     ]
     
-    # Split Training vs Inference
+    # --- TRAINING DATA ---
+    # We drop the last 5 days because they don't have a known target yet, then drop NaNs
     df_train = df[:-5].dropna()
-    df_inference = df.dropna() 
-    
-    # Drop leakage columns
     df_train_ready = df_train.drop(columns=columns_to_drop)
-    df_inference_ready = df_inference.drop(columns=columns_to_drop)
+    
+    # --- INFERENCE DATA ---
+    # We drop the future target columns FIRST, so we don't accidentally delete "Today" when dropping NaNs
+    df_inference_ready = df.drop(columns=columns_to_drop).dropna()
     
     out_dir = PROJECT_ROOT / 'data' / 'processed'
     out_dir.mkdir(parents=True, exist_ok=True)
