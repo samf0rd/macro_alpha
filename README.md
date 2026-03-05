@@ -1,6 +1,3 @@
-Here is the complete, ready-to-copy Markdown for your `README.md`. You can click the "Copy code" button in the top right corner of the block below and paste it directly into your file.
-
-```markdown
 # 🚀 Macro-Alpha Engine: Dual-Brain Market Forecasting
 
 ![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white)
@@ -37,7 +34,6 @@ graph TD
     
     H --> J[Streamlit Dashboard & SHAP Analysis]
     I --> J
-
 ```
 
 ## 🗝️ Core Methodology
