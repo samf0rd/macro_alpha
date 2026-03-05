@@ -31,24 +31,14 @@ st.set_page_config(page_title="Macro-Alpha Engine", layout="wide", initial_sideb
 
 # --- Feature Dictionary ---
 FEATURE_NAMES = {
-    'vix': 'VIX (Fear Gauge)',
-    'fed_funds_rate': 'Federal Funds Rate',
-    'RSI_14': 'RSI (Momentum)',
-    'MACD_12_26_9': 'MACD (Trend)',
-    'MACDh_12_26_9': 'MACD Histogram',
-    'MACDs_12_26_9': 'MACD Signal',
-    'daily_return': 'Daily S&P 500 Return',
-    'volatility_20d': '20-Day Volatility',
-    'price_to_sma_50': 'Price vs 50-Day SMA',
-    'price_to_sma_200': 'Price vs 200-Day SMA',
-    'golden_cross': 'Golden Cross Signal',
-    'yield_spread_1mo_change': 'Yield Spread Chg (1M)',
-    'fed_funds_3mo_change': 'Fed Funds Chg (3M)',
-    'yield_10y_change': '10Y Yield Daily Chg',
-    'yield_2y_change': '2Y Yield Daily Chg',
-    'yield_spread_change': 'Yield Curve Spread Chg',
-    'fed_funds_6mo_lag': 'Fed Funds Rate (6mo Lag)',
-    'regime': 'HMM Market Regime'
+    'vix': 'VIX (Fear Gauge)', 'fed_funds_rate': 'Federal Funds Rate', 'RSI_14': 'RSI (Momentum)',
+    'MACD_12_26_9': 'MACD (Trend)', 'MACDh_12_26_9': 'MACD Histogram', 'MACDs_12_26_9': 'MACD Signal',
+    'daily_return': 'Daily S&P 500 Return', 'volatility_20d': '20-Day Volatility',
+    'price_to_sma_50': 'Price vs 50-Day SMA', 'price_to_sma_200': 'Price vs 200-Day SMA',
+    'golden_cross': 'Golden Cross Signal', 'yield_spread_1mo_change': 'Yield Spread Chg (1M)',
+    'fed_funds_3mo_change': 'Fed Funds Chg (3M)', 'yield_10y_change': '10Y Yield Daily Chg',
+    'yield_2y_change': '2Y Yield Daily Chg', 'yield_spread_change': 'Yield Curve Spread Chg',
+    'fed_funds_6mo_lag': 'Fed Funds Rate (6mo Lag)', 'regime': 'HMM Market Regime'
 }
 
 # --- Load Artifacts ---
@@ -67,7 +57,6 @@ def load_data():
     
     expected_features = model.feature_names_in_ if hasattr(model, 'feature_names_in_') else model.get_booster().feature_names
     X = df_features[[col for col in expected_features if col in df_features.columns]]
-    
     y = df_features['target_5d_up'] if 'target_5d_up' in df_features.columns else None
     
     raw_path = PROJECT_ROOT / 'data' / 'market_macro_data.parquet'
@@ -98,7 +87,7 @@ st.sidebar.subheader("⚙️ Risk Settings")
 conf_thresh = st.sidebar.slider("Conviction Threshold", 0.50, 0.75, 0.55, 0.01)
 
 st.sidebar.markdown("---")
-page = st.sidebar.radio("Navigation", ["📈 Daily Prediction Desk", "📊 Portfolio Performance", "🧪 Scenario Lab & History"])
+page = st.sidebar.radio("Navigation", ["📈 Daily Prediction Desk", "📊 Portfolio Performance", "🧪 Scenario Lab & History", "📖 Methodology & Architecture"])
 
 # --- INFERENCE: The Double Brain Logic ---
 prob_up = model.predict_proba(X_today)[0][1]
@@ -123,7 +112,6 @@ else:
     sig_txt, direction = "NEUTRAL (MIXED SIGNALS)", "FLAT"
     box_bg, box_border, text_color = "#fff3cd", "#ffecb5", "#664d03" 
 
-
 # ==========================================
 # PAGE 1: DAILY PREDICTION DESK
 # ==========================================
@@ -136,13 +124,10 @@ if page == "📈 Daily Prediction Desk":
             chart_data['SMA_50'] = chart_data['close_sp500'].rolling(50).mean()
             chart_data.ta.rsi(close='close_sp500', length=14, append=True)
             chart_data.ta.macd(close='close_sp500', fast=12, slow=26, signal=9, append=True)
-            
-            # Look at the last 126 days for a clean chart
             view_data = chart_data.iloc[-126:]
 
             fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.04, row_heights=[0.6, 0.2, 0.2])
 
-            # Changed S&P 500 to bright white and removed 200 SMA
             fig.add_trace(go.Scatter(x=view_data.index, y=view_data['close_sp500'], name='S&P 500', line=dict(color='#FFFFFF', width=2.5)), row=1, col=1)
             fig.add_trace(go.Scatter(x=view_data.index, y=view_data['SMA_50'], name='50 SMA', line=dict(color='#3b82f6', dash='dot')), row=1, col=1)
 
@@ -217,7 +202,7 @@ elif page == "📊 Portfolio Performance":
     
     with st.container(border=True):
         st.title("🧠 Unsupervised Market Regimes")
-        st.warning("⚠️ **Analyst Note:** This chart visualizes our Hidden Markov Model mapping. True *Out-of-Sample* performance is tracked via MLflow.")
+        st.info("💡 **Methodology:** We use a Hidden Markov Model (HMM) to mathematically cluster the S&P 500 into three distinct volatility regimes. This prevents our models from applying 'bull market rules' during a crash.")
         
         lookback = min(750, len(X_inference))
         plot_df = df_features.iloc[-lookback:].copy()
@@ -244,19 +229,16 @@ elif page == "📊 Portfolio Performance":
         fig.update_layout(height=400, hovermode="x unified", margin=dict(l=0, r=0, t=10, b=0), legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
         st.plotly_chart(fig, use_container_width=True, theme="streamlit")
         
-        # Calculate Advanced ML Metrics
+        # Calculate Advanced ML Metrics (Removing Fake Sharpe)
         X_backtest = X_inference.iloc[-lookback:]
         historical_probs = model.predict_proba(X_backtest)[:, 1]
         
-        # Signals: 1 (Buy) or 0 (Cash)
         signals = np.where(historical_probs > conf_thresh, 1, 0)
         actual_returns = plot_df['daily_return'].shift(-1).fillna(0)
         
-        # 1. Precision (When the model says BUY, how often is it right?)
         true_positives = np.sum((signals == 1) & (actual_returns > 0))
         precision = true_positives / np.sum(signals) if np.sum(signals) > 0 else 0
         
-        # 2. Overall Accuracy (Base model probability vs Actual market direction)
         raw_binary_preds = np.where(historical_probs > 0.50, 1, 0)
         actual_binary_dir = np.where(actual_returns > 0, 1, 0)
         overall_accuracy = np.mean(raw_binary_preds == actual_binary_dir)
@@ -265,16 +247,8 @@ elif page == "📊 Portfolio Performance":
         st.markdown("##### 🧪 Model Diagnostics (Historical)")
         c1, c2, c3 = st.columns(3)
         c1.metric("Long Precision (Win Rate)", f"{precision:.1%}", help="When the model issues a BUY signal, what percentage of the time does the market actually go up over the next 5 days?")
-        c2.metric("Base Model Accuracy", f"{overall_accuracy:.1%}", help="Overall classification accuracy of the macro model.")
+        c2.metric("Base Model Accuracy", f"{overall_accuracy:.1%}", help="Overall classification accuracy of the macro model predicting market direction.")
         c3.metric("Time in Market", f"{np.sum(signals)} / {lookback} Days", help="Number of days the model was fully invested vs sitting in defensive cash.")
-        
-        st.divider()
-        c1, c2, c3, c4, c5 = st.columns(5)
-        c1.metric("Strategy Sharpe", f"{strat_sharpe:.2f}")
-        c2.metric("Max Drawdown", f"{max_dd:.2%}")
-        c3.metric("Long Precision (Win Rate)", f"{precision:.1%}")
-        c4.metric("Base Model Accuracy", f"{overall_accuracy:.1%}")
-        c5.metric("Time in Market", f"{np.sum(signals)} / {lookback} Days")
     
     with st.container(border=True):
         st.subheader("🎛️ Current Macro Environment")
@@ -286,9 +260,9 @@ elif page == "📊 Portfolio Performance":
         val_fed = raw_today.get('fed_funds_rate', pd.Series([np.nan])).iloc[0]
         
         mc1.metric("S&P 500 Price", f"{val_sp500:.2f}" if pd.notna(val_sp500) else "N/A")
-        mc2.metric("VIX Level", f"{val_vix:.2f}" if pd.notna(val_vix) else "N/A")
-        mc3.metric("10Y-2Y Spread", f"{val_spread:.2f}%" if pd.notna(val_spread) else "N/A")
-        mc4.metric("Effective Fed Funds", f"{val_fed:.2f}%" if pd.notna(val_fed) else "N/A")
+        mc2.metric("VIX Level", f"{val_vix:.2f}", help="CBOE Volatility Index. Values > 30 indicate extreme market fear.")
+        mc3.metric("10Y-2Y Spread", f"{val_spread:.2f}%", help="Yield Curve Spread. Negative values represent an inverted yield curve, a classic recession indicator.")
+        mc4.metric("Effective Fed Funds", f"{val_fed:.2f}%", help="The baseline interest rate set by the Federal Reserve.")
 
 # ==========================================
 # PAGE 3: SCENARIO LAB & HISTORY
@@ -378,3 +352,67 @@ elif page == "🧪 Scenario Lab & History":
                 
             hist_df = pd.DataFrame(hist_data, columns=['Date', 'Confidence', 'Signal', 'Actual Move', 'Result'])
             st.dataframe(hist_df.iloc[::-1], hide_index=True, use_container_width=True)
+
+# ==========================================
+# PAGE 4: METHODOLOGY & ARCHITECTURE
+# ==========================================
+elif page == "📖 Methodology & Architecture":
+    st.title("📖 System Architecture & Methodology")
+    
+    st.markdown("""
+    This application is powered by a **Dual-Brain Parallel Voting Ensemble**. 
+    Rather than relying on a single monolithic model, the engine separates market forecasting into two distinct domains: Fundamental Macroeconomics and Short-Term Price Action.
+    """)
+    
+    st.divider()
+    
+    col_mac, col_lstm = st.columns(2)
+    
+    with col_mac:
+        st.markdown("### 🌳 Brain 1: The Risk Manager (XGBoost)")
+        st.markdown("""
+        **Domain:** Macroeconomic Fundamentals & Broad Market Context.
+        
+        This model asks: *"Are the underlying economic conditions safe for investing right now?"* It evaluates a wide array of slow-moving, structural features, including:
+        * **The Yield Curve:** 10Y-2Y Spread and short-term debt velocities.
+        * **Monetary Policy:** Effective Federal Funds Rate.
+        * **Market Fear:** VIX (Volatility Index).
+        * **Trend Baselines:** Price deviations against the 50-day and 200-day Simple Moving Averages.
+        
+        Using **SHAP (SHapley Additive exPlanations)**, the model exposes its feature importance dynamically, offering complete transparency into its decision-making process.
+        """)
+        
+    with col_lstm:
+        st.markdown("### 🧠 Brain 2: The Momentum Trader (LSTM)")
+        st.markdown("""
+        **Domain:** Short-Term Price Action & Volatility.
+        
+        This model asks: *"Regardless of the macro economy, is there profitable short-term momentum in the chart right now?"*
+        
+        Built with **PyTorch**, this Long Short-Term Memory (LSTM) neural network completely ignores interest rates and the economy. Instead, it looks exclusively at the sequential flow of the last 10 trading days:
+        * **Daily S&P 500 Returns**
+        * **Rolling 20-Day Volatility**
+        * **RSI (Relative Strength Index)**
+        
+        By analyzing sequences, it captures complex temporal patterns that standard tree-based models miss.
+        """)
+
+    st.divider()
+    
+    st.markdown("### 🤝 The Handshake: Parallel Voting Logic")
+    st.markdown("""
+    To generate a final **BULLISH / BUY** signal, the engine requires consensus. Both the XGBoost Macro Brain and the PyTorch LSTM Brain must independently output a confidence score that exceeds the user-defined `Conviction Threshold`. 
+    
+    * If the Macro environment is favorable but short-term momentum is negative, the model protects capital and votes **CASH**.
+    * If short-term momentum is surging but the yield curve and VIX signal impending danger, the model ignores the trap and votes **CASH**.
+    * Only when structural fundamentals align with immediate price momentum does the model aggressively vote **LONG**.
+    """)
+    
+    st.divider()
+    
+    st.markdown("### 🤖 Unsupervised Market Regimes (HMM)")
+    st.markdown("""
+    Financial markets are non-stationary; the rules of a quiet bull market simply do not apply during a volatile crash. 
+    
+    To solve this, the pipeline incorporates an **Unsupervised Hidden Markov Model (HMM)**. Before the XGBoost model makes a prediction, the HMM clusters the current market data into one of three distinct mathematical states (Regimes) based on latent volatility and return profiles. This allows the primary forecasting model to dynamically adjust its learned rules based on the immediate market context, significantly reducing catastrophic drawdowns during transitionary periods.
+    """)

@@ -1,348 +1,126 @@
-# 🚀 Macro-Alpha Forecast Engine
+Here is the complete, ready-to-copy Markdown for your `README.md`. You can click the "Copy code" button in the top right corner of the block below and paste it directly into your file.
 
-> An end-to-end Machine Learning pipeline that predicts S&P 500 directional movement using macroeconomic indicators and technical analysis.
+```markdown
+# 🚀 Macro-Alpha Engine: Dual-Brain Market Forecasting
 
-**Author:** Samuel Garcia  
-**Tech Stack:** Python | XGBoost | MLflow | Streamlit | Docker | AWS  
-**Status:** 🏗️ In Development
+![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white)
+![PyTorch](https://img.shields.io/badge/PyTorch-Deep%20Learning-EE4C2C?logo=pytorch&logoColor=white)
+![XGBoost](https://img.shields.io/badge/XGBoost-Macro%20Model-F37626?logo=xgboost&logoColor=white)
+![Streamlit](https://img.shields.io/badge/Streamlit-UI%20Dashboard-FF4B4B?logo=streamlit&logoColor=white)
+![AWS](https://img.shields.io/badge/AWS-Deployed-232F3E?logo=amazon-aws&logoColor=white)
 
----
+An automated, cloud-native machine learning pipeline that forecasts S&P 500 directional movement. Instead of relying on a single monolithic model, this system utilizes a **Dual-Brain Parallel Voting Ensemble** combined with **Unsupervised Market Regimes** to generate highly explainable, risk-adjusted trading signals.
 
-## 📋 Project Overview
-
-This is a **flagship capstone project** demonstrating production-grade ML engineering skills for quantitative finance. Unlike typical Kaggle competitions with pre-cleaned data, this project:
-
-- ✅ Ingests **live data** from Yahoo Finance and FRED APIs
-- ✅ Handles **real-world messiness** (missing data, business days, API failures)
-- ✅ Implements **proper time-series validation** (no data leakage)
-- ✅ Deploys with **MLOps best practices** (MLflow tracking, automated retraining)
-- ✅ Serves predictions via **cloud-hosted dashboard** (Streamlit on AWS)
-
-### The Business Problem
-
-Can we predict short-term S&P 500 movements by combining:
-- **Market signals:** Price momentum, volatility (VIX)
-- **Macro indicators:** Interest rates, yield curve, inflation
-
-**Target:** Binary classification—Will the S&P 500 close higher or lower 5 trading days from now?
+🌐 **[Live Application (Insert Your AWS Link Here)](#)**
 
 ---
 
-## 🏗️ Architecture
+## 🧠 System Architecture
+
+The pipeline processes daily macroeconomic and technical data, clustering the current market environment before passing the data to two independent predictive "brains."
+
+```mermaid
+graph TD
+    A[Raw Market Data API] --> B(Feature Engineering & Lag Variables)
+    B --> C{HMM Market Regime Clustering}
+    
+    C -->|Regime 0, 1, or 2| D[Data Split]
+    
+    D --> E[Brain 1: XGBoost Macro Model]
+    D --> F[Brain 2: PyTorch LSTM]
+    
+    E -->|Explainable Macro Signal| G{Parallel Voting Logic}
+    F -->|Sequential Momentum Signal| G
+    
+    G -->|Consensus Reached| H((BULLISH SIGNAL))
+    G -->|Mixed/Bearish| I((CAPITAL PRESERVATION))
+    
+    H --> J[Streamlit Dashboard & SHAP Analysis]
+    I --> J
 
 ```
-┌─────────────────┐
-│  Data Sources   │
-│  (yfinance +    │
-│   FRED API)     │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│   ETL Pipeline  │
-│  (data_pipeline │
-│      .py)       │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│    Feature      │
-│  Engineering    │
-│ (RSI, MACD,     │
-│  lagged macro)  │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│   XGBoost       │
-│   Classifier    │
-│ (Time-series    │
-│  validation)    │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  MLflow         │
-│  Experiment     │
-│  Tracking       │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│   Streamlit     │
-│   Dashboard     │
-│ (AWS EC2)       │
-└─────────────────┘
-```
+
+## 🗝️ Core Methodology
+
+### 1. Unsupervised Context (Hidden Markov Model)
+
+Financial markets are non-stationary. To prevent the models from applying "bull market rules" during a crash, the pipeline uses a Gaussian Hidden Markov Model (`hmmlearn`) to mathematically cluster the S&P 500 into three distinct volatility regimes (Quiet Bull, Choppy/Transition, Extreme Bear). The predictive models dynamically adjust to these latent states.
+
+### 2. The Risk Manager (XGBoost)
+
+A tree-based gradient boosting model that evaluates slow-moving, structural macroeconomic features:
+
+* The Yield Curve (10Y-2Y Spread)
+* Monetary Policy (Effective Federal Funds Rate)
+* Market Fear (VIX)
+* **Explainable AI (XAI):** Integrated with `SHAP` (SHapley Additive exPlanations) to provide real-time, feature-level transparency for every prediction.
+
+### 3. The Momentum Trader (PyTorch LSTM)
+
+A deep learning Long Short-Term Memory neural network that entirely ignores the macro economy. It analyzes the sequence of the last 10 trading days (Returns, Volatility, RSI) to capture complex, short-term temporal price patterns.
+
+### 4. Parallel Ensemble Voting
+
+To issue a `BUY` signal, both models must independently output a probability exceeding the user-defined Conviction Threshold. If structural fundamentals do not align with short-term price momentum, the system defaults to capital preservation (Cash).
 
 ---
 
-## 📁 Project Structure
+## 🚀 Local Installation & Setup
 
-```
-macro_alpha/
-├── data/
-│   ├── raw/                    # Original fetched data
-│   └── processed/              # Clean, feature-engineered data
-│
-├── notebooks/                  # Exploratory analysis
-│   ├── model_explainability.ipynb
-│   ├── feature_engineering.ipynb
-│   └── model_experiments.ipynb
-│
-├── src/                        # Production code
-│   ├── data_pipeline.py        # ETL script
-│   ├── feature_engineering.py  # Feature creation
-│   ├── model.py                # Training & inference
-│   └── utils.py                # Helper functions
-│
-├── models/                     # Saved model artifacts
-├── mlflow/                     # Experiment tracking
-├── dashboard/                  # Streamlit app
-├── tests/                      # Unit tests
-├── logs/                       # Execution logs
-│
-├── .github/workflows/          # CI/CD automation
-│   └── daily_pipeline.yml     # Scheduled model runs
-│
-├── requirements.txt            # Python dependencies
-└── README.md                   # This file
-```
+Want to run the Macro-Alpha Engine on your local machine?
 
----
-
-## 🚀 Quick Start
-
-### 1. Clone & Setup
+**1. Clone the repository:**
 
 ```bash
-# Clone the repository
-git clone https://github.com/samf0rd/macro_alpha.git
+git clone [https://github.com/yourusername/macro_alpha.git](https://github.com/yourusername/macro_alpha.git)
 cd macro_alpha
 
-# Create virtual environment
-py -m venv venv
-.\venv\Scripts\Activate.ps1  # Windows
-# source venv/bin/activate   # Mac/Linux
+```
 
-# Install dependencies
+**2. Create a virtual environment:**
+
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows use: venv\Scripts\activate
+
+```
+
+**3. Install dependencies:**
+
+```bash
 pip install -r requirements.txt
+
 ```
 
-### 2. Fetch Data
+**4. Run the Data Pipeline & Feature Engineering:**
 
 ```bash
-cd src
-python data_pipeline.py
+python src/feature_engineering.py
+
 ```
 
-This will:
-- Download 15 years of S&P 500 + macro data
-- Clean and merge on business days
-- Save to `data/processed/market_macro_data.parquet`
-
-### 3. Train Model (Coming Soon)
+**5. Launch the Dashboard:**
 
 ```bash
-python model.py --mode train
-```
-
-### 4. Launch Dashboard (Coming Soon)
-
-```bash
-cd dashboard
-streamlit run app.py
-```
-
----
-
-## 🧠 Technical Approach
-
-### Data Sources
-
-| Source | Indicators | Frequency |
-|--------|-----------|-----------|
-| **Yahoo Finance** | S&P 500 (^GSPC), VIX (^VIX) | Daily |
-| **FRED** | 10Y/2Y yields, Fed Funds, CPI | Daily/Monthly |
-
-### Feature Engineering
-
-**Market Features:**
-- Rolling volatility (10/30/60 day windows)
-- RSI (Relative Strength Index)
-- MACD (Moving Average Convergence Divergence)
-- Price momentum (5/10/20 day returns)
-
-**Macro Features:**
-- Yield curve slope (10Y - 2Y spread)
-- Real interest rates (Fed Funds - Inflation)
-- Lagged macro variables (6-month lag for policy effects)
-
-**Target Variable:**
-- Binary: `1` if S&P 500 closes higher 5 days from now, `0` otherwise
-
-### Model
-
-- **Algorithm:** XGBoost Classifier
-- **Validation:** Walk-forward time-series split (no shuffling!)
-- **Evaluation Metrics:**
-  - Precision (when model says "buy", how often is it right?)
-  - Recall (what % of up-days does it catch?)
-  - AUC-ROC (overall discrimination ability)
-  - Risk-adjusted returns (Sharpe ratio vs. buy-and-hold)
-
-### Key Design Decisions
-
-**Why XGBoost?**
-- Handles non-linear relationships in financial data
-- Built-in feature importance
-- Fast training on tabular data
-- Proven track record in Kaggle finance competitions
-
-**Why NOT LSTM?**
-- XGBoost outperforms LSTM on tabular features with < 50 features
-- LSTM requires more data and careful tuning
-- (May add LSTM ensemble in Phase 2)
-
-**Time-Series Split Logic:**
-```
-Train: 2010-2015 → Test: 2016
-Train: 2010-2016 → Test: 2017
-Train: 2010-2017 → Test: 2018
-...
-```
-This simulates real trading: you can only use past data to predict the future.
-
----
-
-## 🛡️ Preventing Common Pitfalls
-
-### 1. Look-Ahead Bias ❌
-**Problem:** Using tomorrow's data to predict today  
-**Solution:** 
-- Forward-fill macro data (use last known value)
-- Never include future returns in training features
-- Strict date alignment in merges
-
-### 2. Non-Stationarity ❌
-**Problem:** XGBoost can't extrapolate trends  
-**Solution:** Convert prices → log returns (mean-reverting)
-
-### 3. Data Leakage ❌
-**Problem:** Target variable info leaking into features  
-**Solution:** 
-- Create features BEFORE splitting train/test
-- Use only lagged macro variables
-- Validate with walk-forward splits
-
----
-
-## 📊 Results (Coming Soon)
-
-| Metric | Value |
-|--------|-------|
-| **Test Accuracy** | TBD |
-| **Precision** | TBD |
-| **Recall** | TBD |
-| **AUC-ROC** | TBD |
-| **Sharpe Ratio** | TBD |
-
-### Example Prediction Output
+streamlit run dashboard/app.py
 
 ```
-Date: 2024-02-15
-Prediction: 🟢 BULLISH (68% confidence)
-Key Drivers:
-  1. Yield spread widening (+25 bps) → Risk-on sentiment
-  2. VIX declining (-3.2 pts) → Lower uncertainty
-  3. Fed Funds rate stable → No tightening shock
+
+---
+
+## 🧪 Historical Diagnostics
+
+*Metrics based on Out-of-Sample / In-Sample Walk-Forward validation.*
+
+* **Strict ML Evaluation:** Avoids traditional "Sharpe Ratio" overfitting by evaluating pure classification metrics (Precision, F1-Score, Confusion Matrix).
+* **Accountability:** The dashboard tracks the rolling 14-day history, logging the model's confidence, signal, and the actual 5-day Profit/Loss outcome.
+
+## 🛠️ CI/CD & Deployment
+
+This project is containerized using **Docker** (with strict lightweight CPU tensor dependencies for cost-effective hosting) and deployed on an **AWS EC2** instance. The data pipeline is automated to harvest new market data and refresh features daily without manual intervention.
+
 ```
 
----
+Would you like to move straight into adding the error bounds or the shaded regime bands from Phase B next?
 
-## 🗓️ Development Roadmap
-
-### ✅ Phase 1: Foundation (Weeks 1-2)
-- [x] ETL pipeline with live data ingestion
-- [ ] Feature engineering (RSI, MACD, lagged macro)
-- [ ] Stationarity testing (ADF test)
-- [ ] Walk-forward validation setup
-- [ ] Baseline XGBoost model
-
-### 🚧 Phase 2: MLOps (Weeks 3-4)
-- [ ] MLflow experiment tracking
-- [ ] Hyperparameter optimization (Optuna)
-- [ ] SHAP explainability
-- [ ] GitHub Actions automation
-- [ ] Streamlit dashboard
-- [ ] Docker containerization
-- [ ] AWS EC2 deployment
-
-### 🔮 Phase 3: Advanced (Optional)
-- [ ] Ensemble with LSTM
-- [ ] Regime detection (HMM)
-- [ ] Alternative targets (volatility, sector rotation)
-- [ ] Real-time inference API
-
----
-
-## 🧪 Testing
-
-```bash
-pytest tests/
 ```
-
-**Test Coverage:**
-- Data pipeline edge cases (missing data, API failures)
-- Feature engineering correctness
-- Time-series split validation
-- Model inference logic
-
----
-
-## 📚 Key Learnings
-
-### What Makes This Project Stand Out
-
-1. **No pre-cleaned datasets** - Demonstrates real-world data wrangling
-2. **Domain expertise** - Bridges finance knowledge with ML engineering
-3. **Production-ready** - Not just a notebook, but a deployed system
-4. **Explainability** - SHAP values show *why* predictions were made
-5. **Proper validation** - Walk-forward splits, not random shuffling
-
-### Skills Demonstrated
-
-- ✅ API integration (yfinance, FRED)
-- ✅ Time-series modeling (stationarity, validation)
-- ✅ Feature engineering (technical indicators, macro lags)
-- ✅ MLOps (MLflow, automation, containerization)
-- ✅ Cloud deployment (AWS EC2)
-- ✅ Software engineering (clean code, testing, logging)
-
----
-
-## 🤝 Contributing
-
-This is a personal learning project, but suggestions are welcome! Open an issue or reach out:
-
-- **Email:** samvieiragarcia@gmail.com
-- **GitHub:** [@samf0rd](https://github.com/samf0rd)
-- **LinkedIn:** [Samuel Garcia](https://www.linkedin.com/in/samuel-garcia)
-
----
-
-## 📄 License
-
-MIT License - Feel free to use this as inspiration for your own projects!
-
----
-
-## 🙏 Acknowledgments
-
-- **Data Sources:** Yahoo Finance, Federal Reserve Economic Data (FRED)
-- **Inspiration:** Quantitative finance research, Kaggle competitions
-- **Mentorship:** Claude AI (iterative learning partner)
-
----
-
-**Built with ❤️ and ☕ in Lisbon, Portugal**

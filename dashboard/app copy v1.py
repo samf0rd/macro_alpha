@@ -165,21 +165,7 @@ if page == "📈 Daily Prediction Desk":
             c1.metric("Macro Conf.", f"{prob_up:.1%}")
             c2.metric("LSTM Conf.", f"{lstm_prob:.1%}")
             c3.metric("Threshold", f"{conf_thresh:.0%}")
-            
-            # Phase B: Dynamic Uncertainty Bounds
-            # Calculate historical accuracy for this specific confidence bin
-            all_historical_probs = model.predict_proba(X_inference)[:, 1]
-            bin_lower = np.floor(prob_up * 10) / 10.0
-            bin_upper = bin_lower + 0.10
-            
-            mask = (all_historical_probs >= bin_lower) & (all_historical_probs < bin_upper)
-            actual_moves = np.where(df_features['daily_return'].shift(-1).fillna(0) > 0, 1, 0)
-            
-            if np.sum(mask) > 5:
-                pred_dir = 1 if prob_up > 0.5 else 0
-                bin_acc = np.mean(np.where(all_historical_probs[mask] > 0.5, 1, 0) == actual_moves[mask])
-                st.info(f"📊 **Historical Context:** When Macro confidence is between {bin_lower:.0%} - {bin_upper:.0%}, the model is accurate **{bin_acc:.1%}** of the time.")
-
+        
     with col2:
         with st.container(border=True):
             st.subheader("🤖 AI Analyst Summary")
@@ -212,6 +198,7 @@ if page == "📈 Daily Prediction Desk":
                         val = X_today[row['Feature']].iloc[0]
                         st.markdown(f"🔴 **{row['Name']}** ({val:.4f})")
                         
+# Phase A: Advanced SHAP Waterfall UI Compromise
     with st.expander("📊 View Advanced SHAP Waterfall Analysis", expanded=False):
         st.markdown("This mathematical breakdown shows exactly how each feature pushed the model's probability away from the baseline.")
         
@@ -220,6 +207,9 @@ if page == "📈 Daily Prediction Desk":
         shap_obj = shap_explainer(X_display)
         
         fig, ax = plt.subplots(figsize=(8, 5))
+        fig.patch.set_facecolor('none')
+        ax.set_facecolor('none')
+        
         shap.plots.waterfall(shap_obj[0], max_display=8, show=False)
         plt.tight_layout()
         st.pyplot(fig)
@@ -246,27 +236,8 @@ elif page == "📊 Portfolio Performance":
 
         fig = go.Figure()
         regime_colors = {0: '#10b981', 1: '#f59e0b', 2: '#ef4444'} 
-        bg_colors = {0: 'rgba(16, 185, 129, 0.1)', 1: 'rgba(245, 158, 11, 0.1)', 2: 'rgba(239, 68, 68, 0.15)'}
         regime_names = {0: 'Quiet Bull (Low Vol)', 1: 'Choppy/Transition (Med Vol)', 2: 'Extreme Bear (High Vol)'}
         
-        # Phase B: Add shaded background blocks for regimes
-        plot_df['Date'] = plot_df.index
-        plot_df['regime_change'] = plot_df['regime'].diff().ne(0)
-        plot_df['regime_block'] = plot_df['regime_change'].cumsum()
-        
-        blocks = plot_df.groupby('regime_block').agg(
-            start_date=('Date', 'min'),
-            end_date=('Date', 'max'),
-            regime=('regime', 'first')
-        )
-        
-        for _, row in blocks.iterrows():
-            fig.add_vrect(
-                x0=row['start_date'], x1=row['end_date'],
-                fillcolor=bg_colors.get(row['regime'], 'rgba(0,0,0,0)'),
-                opacity=1, layer="below", line_width=0
-            )
-
         for regime_id in [0, 1, 2]:
             mask = plot_df['regime'] == regime_id
             fig.add_trace(go.Scatter(
@@ -274,26 +245,6 @@ elif page == "📊 Portfolio Performance":
                 marker=dict(color=regime_colors.get(regime_id, 'gray'), size=4),
                 name=regime_names.get(regime_id, f'Regime {regime_id}')
             ))
-
-        # --- Major Market Event Annotations ---
-        events = {
-            "2023-10-27": "10Y Yield Hits 5%<br>(Rate Panic)",
-            "2024-08-05": "Yen Carry Trade<br>Flash Crash"
-        }
-        
-        for date_str, event_text in events.items():
-            event_date = pd.to_datetime(date_str).date()
-            # Find the closest trading day in our index
-            if not plot_df.empty and event_date >= plot_df.index.min().date() and event_date <= plot_df.index.max().date():
-                closest_date = min(plot_df.index, key=lambda d: abs(d.date() - event_date))
-                y_val = plot_df.loc[closest_date, 'close']
-                
-                fig.add_annotation(
-                    x=closest_date, y=y_val, text=event_text,
-                    showarrow=True, arrowhead=2, arrowsize=1, arrowwidth=2, arrowcolor="#ef4444",
-                    ax=0, ay=-50, font=dict(color="white", size=10),
-                    bgcolor="rgba(0,0,0,0.7)", bordercolor="#ef4444", borderwidth=1, borderpad=4
-                )
 
         fig.update_layout(height=400, hovermode="x unified", margin=dict(l=0, r=0, t=10, b=0), legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
         st.plotly_chart(fig, use_container_width=True, theme="streamlit")
@@ -352,6 +303,7 @@ elif page == "🧪 Scenario Lab & History":
     with st.container(border=True):
         st.title("🧪 What-If Scenario Lab")
         
+        # Phase A: Quick Scenarios
         scenario = st.radio("⚡ Quick Scenarios", ["Current Market", "Fed Hikes 50bps", "Market Panic (VIX 40+)", "Strong Bull Trend"], horizontal=True)
         
         def_vix = float(X_today['vix'].iloc[0])
