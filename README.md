@@ -269,7 +269,7 @@ Coverage goals: Pipeline 85%+ | Features 90%+ | Models 80%+
 Aspiring Data Scientist | Finance → ML Transition  
 📍 Lisbon, Portugal
 
-**LinkedIn:** [linkedin.com/in/samuel-garcia](https://linkedin.com/in/samuel-garcia)  
+**LinkedIn:** [linkedin.com/in/samuel-garcia](https://www.linkedin.com/in/samuel-garcia-427476159/)  
 **Email:** samvieiragarcia@gmail.com  
 **GitHub:** [@samf0rd](https://github.com/samf0rd)  
 **Portfolio:** [More Projects →](https://github.com/samf0rd?tab=repositories)
