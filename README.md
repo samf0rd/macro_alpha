@@ -8,7 +8,7 @@
 
 > An automated ML system that predicts S&P 500 directional movement using a **Dual-Brain Ensemble** (XGBoost + PyTorch LSTM) with **Unsupervised Regime Detection** and **SHAP Explainability**.
 
-🌐 **[Live Dashboard](http://your-ec2-ip:8501)** | 📹 **[2-Min Demo](https://youtu.be/your-demo)** | 📄 **[Technical Deep Dive](docs/TECHNICAL_DETAILS.md)**
+🌐 **[Live Dashboard]([https://samvgarcia.com](https://samvgarcia.com))** | 📹 **[2-Min Demo](https://youtu.be/your-demo)** | 📄 **[Technical Deep Dive](docs/TECHNICAL_DETAILS.md)**
 
 ---
 
