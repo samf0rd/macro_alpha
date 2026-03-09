@@ -8,7 +8,7 @@
 
 > An automated ML system that predicts S&P 500 directional movement using a **Dual-Brain Ensemble** (XGBoost + PyTorch LSTM) with **Unsupervised Regime Detection** and **SHAP Explainability**.
 
-🌐 **[Live Dashboard](https://www.samvgarcia.com)** | 📹 **[2-Min Demo](https://youtu.be/your-demo)** | 📄 **[Technical Deep Dive](docs/TECHNICAL_DETAILS.md)**
+🌐 **[Live Dashboard](https://www.samvgarcia.com)** | 📄 **[Technical Deep Dive](docs/TECHNICAL_DETAILS.md)**
 
 ---
 
@@ -127,8 +127,6 @@ All metrics are **out-of-sample** using walk-forward validation.
 
 **Key Insight:** Ensemble achieves 2.4x better risk-adjusted returns (Sharpe 1.2 vs 0.5) with controlled drawdowns.
 
-![Backtest Performance](docs/images/backtest_cumulative.png)
-
 ---
 
 ## 🛠️ Tech Stack
@@ -223,8 +221,6 @@ Every weekday at 4PM EST:
 4. Generate prediction + SHAP values
 5. Save to `predictions.csv` + commit to GitHub
 
-**[→ Deployment Guide](docs/DEPLOYMENT.md)**
-
 ---
 
 ## ⚠️ Known Limitations
@@ -250,17 +246,6 @@ Every weekday at 4PM EST:
 - [ ] Transformer architecture for sequences
 - [ ] Real-time data feed (WebSocket)
 - [ ] Multi-region deployment
-
----
-
-## 📚 Documentation
-
-**For technical deep dives:**
-
-- 📖 [**Technical Details**](docs/TECHNICAL_DETAILS.md) - Full methodology, validation strategy, feature engineering
-- 🚀 [**Deployment Guide**](docs/DEPLOYMENT.md) - Docker, AWS EC2, GitHub Actions setup
-- 🔧 [**Feature Engineering**](docs/FEATURES.md) - Every feature explained with formulas
-- 📊 [**Product Requirements Doc**](docs/Macro_Alpha_PRD.pdf) - Complete project specification
 
 ---
 
