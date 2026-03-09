@@ -8,17 +8,23 @@
 
 > An automated ML system that predicts S&P 500 directional movement using a **Dual-Brain Ensemble** (XGBoost + PyTorch LSTM) with **Unsupervised Regime Detection** and **SHAP Explainability**.
 
-🌐 **[Live Dashboard]([https://samvgarcia.com](https://samvgarcia.com))** | 📹 **[2-Min Demo](https://youtu.be/your-demo)** | 📄 **[Technical Deep Dive](docs/TECHNICAL_DETAILS.md)**
+🌐 **[Live Dashboard]((https://samvgarcia.com))** | 📹 **[2-Min Demo](https://youtu.be/your-demo)** | 📄 **[Technical Deep Dive](docs/TECHNICAL_DETAILS.md)**
 
 ---
 
 ## 📸 Dashboard Preview
 
-![Dashboard Preview](docs/images/dashboard_main.png)
-*Real-time prediction with SHAP explainability and regime detection*
+<p align="center">
+  <img src="docs/images/dashboard_preview.PNG" alt="Dashboard Preview" width="800">
+  <br>
+  <em>Real-time prediction with SHAP explainability and regime detection</em>
+</p>
 
-![Regime Detection](docs/images/regime_detection.png)
-*Unsupervised HMM clustering identifies bull/bear/transition market states*
+<p align="center">
+  <img src="docs/images/regime_detection.PNG" alt="Regime Detection" width="800">
+  <br>
+  <em>Unsupervised HMM clustering identifies bull/bear/transition market states</em>
+</p>
 
 ---
 
