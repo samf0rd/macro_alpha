@@ -16,6 +16,7 @@ Usage:
 """
 
 import logging
+import time
 import warnings
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -133,29 +134,44 @@ class DataHarvester:
         
         try:
             for fred_code, column_name in fred_series.items():
-                try:
-                    series = pdr.DataReader(fred_code, 'fred', 
-                                           self.start_date, self.end_date)
-                    series.columns = [column_name]
-                    
-                    if macro_data.empty:
-                        macro_data = series
-                    else:
-                        macro_data = macro_data.join(series, how='outer')
-                    
-                    logger.info(f"  [OK] Fetched {column_name} ({fred_code})")
-                
-                except Exception as e:
-                    logger.warning(f"  [FAILED] Failed to fetch {column_name} ({fred_code}): {e}")
-            
+                for attempt in range(3):
+                    try:
+                        series = pdr.DataReader(fred_code, 'fred',
+                                               self.start_date, self.end_date)
+                        series.columns = [column_name]
+
+                        if macro_data.empty:
+                            macro_data = series
+                        else:
+                            macro_data = macro_data.join(series, how='outer')
+
+                        logger.info(f"  [OK] Fetched {column_name} ({fred_code})")
+                        break
+
+                    except Exception as e:
+                        if attempt < 2:
+                            wait = 2 ** (attempt + 1)  # 2s, then 4s
+                            logger.warning(f"  [RETRY {attempt + 1}/3] {column_name} ({fred_code}): {e}. Retrying in {wait}s...")
+                            time.sleep(wait)
+                        else:
+                            logger.warning(f"  [FAILED] {column_name} ({fred_code}) failed after 3 attempts: {e}")
+
+            # Validate all required series were fetched before continuing
+            required = list(fred_series.values())
+            missing = [col for col in required if col not in macro_data.columns]
+            if missing:
+                raise RuntimeError(
+                    f"Missing required FRED indicators after fetch: {missing}. "
+                    f"Available: {list(macro_data.columns)}"
+                )
+
             # Calculate month-over-month CPI change (inflation rate)
-            if 'cpi' in macro_data.columns:
-                macro_data['inflation_mom'] = macro_data['cpi'].pct_change() * 100
-            
+            macro_data['inflation_mom'] = macro_data['cpi'].pct_change() * 100
+
             logger.info(f"Macro data fetched: {len(macro_data)} rows")
-            
+
             return macro_data
-        
+
         except Exception as e:
             logger.error(f"Error fetching macro data: {e}")
             raise
