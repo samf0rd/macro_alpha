@@ -2,10 +2,10 @@ name: Daily Macro-Alpha Pipeline
 
 on:
   schedule:
-    # Runs at 22:00 UTC Monday-Friday
-    # This aligns perfectly with 5:00 PM EST (1 hour after US market close)
-    # and 10:00 PM WET, capturing the full daily trading session.
-    - cron: '0 22 * * 1-5'
+    # Runs at 22:14 UTC Monday-Friday
+    # This aligns perfectly with 5:14 PM EST (1 hour after US market close)
+    # and 10:14 PM WET, capturing the full daily trading session.
+    - cron: '14 22 * * 1-5'
   workflow_dispatch: # Allows manual clicking of a "Run Workflow" button in GitHub
 
 jobs:

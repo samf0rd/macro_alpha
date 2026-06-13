@@ -24,6 +24,7 @@ from pathlib import Path
 import pandas as pd
 import yfinance as yf
 from pandas_datareader import data as pdr
+import requests
 
 # Suppress pandas_datareader warnings
 warnings.filterwarnings('ignore')
@@ -131,13 +132,20 @@ class DataHarvester:
         }
         
         macro_data = pd.DataFrame()
-        
+
+        # Create a fake browser session to bypass API blocking
+        session = requests.Session()
+        session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        })
+
         try:
             for fred_code, column_name in fred_series.items():
                 for attempt in range(3):
                     try:
+                        # Pass the custom session into the DataReader
                         series = pdr.DataReader(fred_code, 'fred',
-                                               self.start_date, self.end_date)
+                                               self.start_date, self.end_date, session=session)
                         series.columns = [column_name]
 
                         if macro_data.empty:
