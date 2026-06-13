@@ -30,6 +30,8 @@ jobs:
           pip install -r requirements.txt 
         
       - name: 🔄 Run Data Harvester (Yahoo/FRED)
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
         run: python src/data_pipeline.py
         # This is where the magic happens. The server runs your Python scripts exactly like you did on your laptop. 
         # It pulls the latest market close data and calculates the new moving averages and macro lags.

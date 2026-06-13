@@ -115,73 +115,64 @@ class DataHarvester:
     
     def fetch_macro_data(self):
         """
-        Fetch macroeconomic indicators from FRED.
-        
-        Returns:
-            pd.DataFrame: Macro data with columns for yields, rates, and inflation
+        Fetch macroeconomic indicators securely via official FRED API.
         """
-        logger.info("Fetching macroeconomic data from FRED...")
-        
+        logger.info("Fetching macroeconomic data from official FRED API...")
+
+        import os
+        api_key = os.environ.get('FRED_API_KEY')
+        if not api_key:
+            raise ValueError("CRITICAL: FRED_API_KEY environment variable is missing!")
+
         # FRED series codes
         fred_series = {
-            'DGS10': 'yield_10y',        # 10-Year Treasury
-            'DGS2': 'yield_2y',          # 2-Year Treasury
-            'DFF': 'fed_funds_rate',     # Federal Funds Effective Rate (replaced DFEDTARR)
-            'T10Y2Y': 'yield_spread',    # 10Y-2Y Spread (recession indicator)
-            'CPIAUCSL': 'cpi'            # Consumer Price Index
+            'DGS10': 'yield_10y',
+            'DGS2': 'yield_2y',
+            'DFF': 'fed_funds_rate',
+            'T10Y2Y': 'yield_spread',
+            'CPIAUCSL': 'cpi'
         }
-        
+
         macro_data = pd.DataFrame()
 
-        # Create a fake browser session to bypass API blocking
-        session = requests.Session()
-        session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        })
-
         try:
+            import requests
             for fred_code, column_name in fred_series.items():
-                for attempt in range(3):
-                    try:
-                        # Pass the custom session into the DataReader
-                        series = pdr.DataReader(fred_code, 'fred',
-                                               self.start_date, self.end_date, session=session)
-                        series.columns = [column_name]
 
-                        if macro_data.empty:
-                            macro_data = series
-                        else:
-                            macro_data = macro_data.join(series, how='outer')
+                # Official FRED API Endpoint
+                url = (f"https://api.stlouisfed.org/fred/series/observations"
+                       f"?series_id={fred_code}"
+                       f"&api_key={api_key}"
+                       f"&file_type=json"
+                       f"&observation_start={self.start_date}"
+                       f"&observation_end={self.end_date}")
 
-                        logger.info(f"  [OK] Fetched {column_name} ({fred_code})")
-                        break
+                response = requests.get(url, timeout=15)
+                response.raise_for_status()
 
-                    except Exception as e:
-                        if attempt < 2:
-                            wait = 2 ** (attempt + 1)  # 2s, then 4s
-                            logger.warning(f"  [RETRY {attempt + 1}/3] {column_name} ({fred_code}): {e}. Retrying in {wait}s...")
-                            time.sleep(wait)
-                        else:
-                            logger.warning(f"  [FAILED] {column_name} ({fred_code}) failed after 3 attempts: {e}")
+                data = response.json()
 
-            # Validate all required series were fetched before continuing
-            required = list(fred_series.values())
-            missing = [col for col in required if col not in macro_data.columns]
-            if missing:
-                raise RuntimeError(
-                    f"Missing required FRED indicators after fetch: {missing}. "
-                    f"Available: {list(macro_data.columns)}"
-                )
+                df = pd.DataFrame(data['observations'])
+                df['date'] = pd.to_datetime(df['date'])
+                df[column_name] = pd.to_numeric(df['value'], errors='coerce')
 
-            # Calculate month-over-month CPI change (inflation rate)
-            macro_data['inflation_mom'] = macro_data['cpi'].pct_change() * 100
+                df = df.set_index('date')[[column_name]]
+
+                if macro_data.empty:
+                    macro_data = df
+                else:
+                    macro_data = macro_data.join(df, how='outer')
+
+                logger.info(f"  [OK] Successfully fetched {column_name} ({fred_code}) via API")
+
+            if 'cpi' in macro_data.columns:
+                macro_data['inflation_mom'] = macro_data['cpi'].pct_change() * 100
 
             logger.info(f"Macro data fetched: {len(macro_data)} rows")
-
             return macro_data
 
         except Exception as e:
-            logger.error(f"Error fetching macro data: {e}")
+            logger.error(f"Error fetching macro data via API: {e}")
             raise
     
     def merge_and_clean(self, market_data, macro_data):
